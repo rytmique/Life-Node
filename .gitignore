@@ -7,3 +7,4 @@ offers/
 config.json
 sent.json
 *.log
+batches/
