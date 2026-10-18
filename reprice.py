@@ -14,8 +14,8 @@ import lead_finder as lf
 REVERSE = {"так": True, "ні": False, "?": None}
 
 
-def load(path):
-    ws = load_workbook(path)["Усі фірми"]
+def load(path, sheet="Усі фірми"):
+    ws = load_workbook(path)[sheet]
     header = [c.value for c in ws[1]]
     by_title = {t: k for t, k, _ in lf.COLUMNS}
     rows = []
@@ -24,7 +24,7 @@ def load(path):
         for title, cell in zip(header, r):
             key = by_title.get(title)
             if key:
-                c[key] = cell.hyperlink.target if key == "firmy_url" and cell.hyperlink else cell.value
+                c[key] = cell.hyperlink.target if key in ("firmy_url", "image") and cell.hyperlink else cell.value
         c = {k: ("" if v is None else v) for k, v in c.items()}
         c["email_ok"] = REVERSE.get(c.get("email_ok"))
         c["new"] = c.get("new") == "NEW"

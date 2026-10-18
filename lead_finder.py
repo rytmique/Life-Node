@@ -160,6 +160,7 @@ def card_from_ld(pid, d):
         "reviews": rating.get("ratingCount", 0) or 0,
         "rating": round(int(rating.get("ratingValue", 0) or 0) / 20, 1) if rating else "",
         "description": (d.get("description") or "")[:300],
+        "image": d.get("image", ""),
     }
 
 
@@ -487,6 +488,7 @@ COLUMNS = [  # (заголовок, ключ, ширина)
     ("Рейтинг", "rating", 8), ("IČO", "ico", 10), ("Власник / юр. назва (ARES)", "legal_name", 28),
     ("Firmy.cz", "firmy_url", 14), ("Текст для першого контакту (CZ)", "pitch", 60),
     ("Статус (твій)", "my_status", 14), ("Нотатки", "notes", 25),
+    ("Опис (Firmy.cz)", "description", 30), ("Фото (Firmy.cz)", "image", 12),
 ]
 
 
@@ -523,14 +525,14 @@ def write_excel(leads, path):
                 ws.cell(row, col).alignment = Alignment(vertical="top", wrap_text=col in wrap_cols)
                 if col in money_cols:
                     ws.cell(row, col).number_format = "#,##0"
-            for key in ("website", "firmy_url"):
+            for key in ("website", "firmy_url", "image"):
                 col = [c[1] for c in COLUMNS].index(key) + 1
                 u = l.get(key)
                 if u:
                     cell = ws.cell(row, col)
                     cell.hyperlink = u if u.startswith("http") else "http://" + u
                     cell.font = Font(color="0563C1", underline="single")
-                    if key == "firmy_url":
+                    if key != "website":
                         cell.value = "відкрити"
             if l.get("phone"):
                 col = [c[1] for c in COLUMNS].index("phone") + 1

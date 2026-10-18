@@ -3,3 +3,6 @@ seen.json
 run.log
 __pycache__/
 *.xlsx
+offers/
+config.json
+sent.json
