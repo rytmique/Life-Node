@@ -1,5 +1,5 @@
 """
-Перерахувати ціни в уже готовому Excel (наприклад після зміни NICHE_PRICING у lead_finder.py).
+Перерахувати ціни в уже готовому Excel (наприклад після зміни START_PRICE / STANDARD_PRICE у lead_finder.py).
 Підтягує правову форму фірми з ARES за IČO.
 Запуск:  python reprice.py output/leady_2026-10-18_1156.xlsx
 """

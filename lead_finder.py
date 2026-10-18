@@ -400,24 +400,16 @@ def pitch(status, reasons):
 
 
 # ---------------------------------------------------------------- ціна
-# Базова ціна сайту (Kč) і що в нього входить – по нішах. Правиш тут під свій ринок.
-NICHE_PRICING = {
-    "booking": (7990, "сайт + онлайн-запис + ціни", (
-        "kadeřnictví", "kosmetický salon", "manikúra", "masáže", "barbershop", "fitness",
-        "autoškola")),
-    "food": (7990, "сайт + меню + бронювання столу + галерея", (
-        "restaurace", "kavárna", "pekárna")),
-    "medical": (9990, "сайт + послуги/ціни + онлайн-запис + команда", (
-        "zubní ordinace", "veterinář")),
-    "realty": (14990, "сайт + каталог об'єктів з фільтрами", ("realitní kancelář",)),
-    "construction": (9990, "сайт + портфоліо проєктів + форма запиту", ("stavební firma",)),
-    "crafts": (5990, "сайт + послуги + галерея робіт + форма", (
-        "instalatér", "elektrikář", "truhlářství", "malíř pokojů", "zámečnictví",
-        "úklidové služby", "autoservis", "pneuservis", "fotograf", "květinářství", "účetní")),
+# Два пакети для всіх. Правиш тут.
+START_PRICE = 4990      # односторінковий сайт: послуги, контакти, мапа, форма
+STANDARD_PRICE = 7990   # повний сайт як на макеті: + запис / меню / галерея
+STANDARD_EXTRAS = {  # що додає Standard для ніші
+    "booking": ("сайт + онлайн-запис + ціни", (
+        "kadeřnictví", "kosmetický salon", "manikúra", "masáže", "barbershop", "fitness", "autoškola",
+        "zubní ordinace", "veterinář", "pneuservis")),
+    "food": ("сайт + меню + бронювання столу + галерея", ("restaurace", "kavárna", "pekárna")),
 }
-DEFAULT_PRICE = (5990, "сайт-візитка: послуги + контакти + форма")
-
-STATUS_K = {"БЕЗ САЙТУ": 1.0, "САЙТ НЕ ПРАЦЮЄ": 1.0, "СТАРИЙ САЙТ": 1.0, "СЛАБКИЙ САЙТ": 1.0, "OK": 1.0}
+DEFAULT_EXTRAS = "сайт + послуги + галерея робіт + форма запиту"
 STATUS_WORK = {"БЕЗ САЙТУ": "новий сайт + домен", "САЙТ НЕ ПРАЦЮЄ": "новий сайт + відновлення домену",
                "СТАРИЙ САЙТ": "редизайн + перенос контенту", "СЛАБКИЙ САЙТ": "модернізація сайту",
                "OK": "—"}
@@ -440,21 +432,17 @@ def legal_form(code, name):
 
 
 def price(c):
-    """Індивідуальна ціна: ніша × розмір фірми × місто. Психологічна ціна: 6 490, 7 990 …"""
-    base, package = DEFAULT_PRICE
-    for b, pkg, niches in NICHE_PRICING.values():
+    """Ціни пакетів Start / Standard + підтримка за розміром фірми."""
+    extras = DEFAULT_EXTRAS
+    for pkg, niches in STANDARD_EXTRAS.values():
         if c.get("niche") in niches:
-            base, package = b, pkg
+            extras = pkg
             break
     k_legal, form = legal_form(c.get("legal_form", ""), c.get("legal_name") or c.get("name"))
-    reviews = int(c.get("reviews") or 0)
-    k_reviews = 1.1 if reviews >= 100 else 1.0
-    k_city = 1.1 if "praha" in (c.get("city") or "").lower() else 1.0
-    total = base * STATUS_K.get(c["status"], 1.0) * k_legal * k_reviews * k_city
-    c["price"] = int(round(total / 500) * 500) - 10
-    c["price_min"] = int(c["price"] * 0.85 // 500 * 500) - 10
+    c["price_start"] = START_PRICE
+    c["price"] = STANDARD_PRICE
     c["support"] = 490 if k_legal >= 1.4 else 390 if k_legal > 1 else 290
-    c["package"] = f"{STATUS_WORK.get(c['status'], '')}: {package}"
+    c["package"] = f"{STATUS_WORK.get(c['status'], '')}: {extras}"
     c["form"] = form
     return c
 
@@ -480,8 +468,8 @@ FILLS = {"БЕЗ САЙТУ": "FFC7CE", "САЙТ НЕ ПРАЦЮЄ": "FFD8A8", 
 
 COLUMNS = [  # (заголовок, ключ, ширина)
     ("Пріоритет", "status", 16), ("Бали", "score", 6), ("Новий", "new", 7),
-    ("Назва", "name", 34), ("Ціна, Kč", "price", 10), ("Мінімум (торг), Kč", "price_min", 11),
-    ("Підтримка/міс, Kč", "support", 10), ("Що продаємо", "package", 40), ("Форма", "form", 8), ("Телефон", "phone", 17), ("Тип тел.", "phone_type", 13),
+    ("Назва", "name", 34), ("Start, Kč", "price_start", 10), ("Standard, Kč", "price", 11),
+    ("Підтримка/міс, Kč", "support", 10), ("Що в Standard", "package", 40), ("Форма", "form", 8), ("Телефон", "phone", 17), ("Тип тел.", "phone_type", 13),
     ("Email", "email", 30), ("Email живий", "email_ok", 11), ("Сайт", "website", 30),
     ("Що не так", "reasons", 45), ("Ніша", "niche", 16), ("Місто", "city", 20),
     ("Адреса", "street", 26), ("PSČ", "zip", 7), ("Відгуки", "reviews", 8),
@@ -500,7 +488,7 @@ def write_excel(leads, path):
     wb = Workbook()
     keys = [c[1] for c in COLUMNS]
     wrap_cols = {keys.index(k) + 1 for k in ("reasons", "pitch", "package")}
-    money_cols = {keys.index(k) + 1 for k in ("price", "price_min", "support")}
+    money_cols = {keys.index(k) + 1 for k in ("price_start", "price", "support")}
     sheets = [("Ліди", [l for l in leads if l["status"] != "OK"]), ("Усі фірми", leads)]
     for i, (title, rows) in enumerate(sheets):
         ws = wb.active if i == 0 else wb.create_sheet()

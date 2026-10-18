@@ -192,7 +192,8 @@ def email_text(lead, cfg):
                    if found else "Prohlížel jsem si váš web a myslím, že by si zasloužil modernější podobu.")
     reviews = int(lead.get("reviews") or 0)
     praise = f" Máte tam {reviews} hodnocení – to je skvělá vizitka." if reviews >= 10 else ""
-    price = f"{int(lead['price']):,}".replace(",", " ")
+    kc = lambda v: f"{int(v):,}".replace(",", " ")
+    start, standard = kc(lead.get("price_start") or lf.START_PRICE), kc(lead.get("price") or lf.STANDARD_PRICE)
     support = int(lead.get("support") or 0)
     web = f" | {cfg['sender_web']}" if cfg.get("sender_web") else ""
     dom = domain_for(lead)
@@ -206,13 +207,16 @@ našel jsem {name} na Firmy.cz.{praise} {problem}
 
 Připravil jsem pro vás ukázku, jak by mohl vypadat váš nový web – najdete ji v příloze.
 
-Co dostanete:
-• {PACKAGE_CZ[wkind]}
+Nabízím dva balíčky:
+• Start – {start} Kč: jednostránkový web se službami, kontakty, mapou a formulářem
+• Standard – {standard} Kč: {PACKAGE_CZ[wkind]} – přesně jako na ukázce
+
+V obou balíčcích:
 • perfektní zobrazení na mobilu
 • {domain_line}
 • základní nastavení pro Google, aby vás zákazníci našli
 
-Cena: {price} Kč jednorázově, hotovo do {cfg['delivery_days']} dnů.
+Platíte jednorázově, hotovo do {cfg['delivery_days']} dnů.
 Správa a drobné úpravy potom za {support} Kč měsíčně (nepovinné).
 
 Pokud vás to zaujme, stačí odpovědět na tento e-mail nebo zavolat na {cfg['sender_phone']}.
@@ -223,7 +227,7 @@ S pozdravem
 
 P.S. Pokud o web nemáte zájem, stačí odepsat „ne“ a už se vám nebudu ozývat."""
     wa = (f"Dobrý den, tady {cfg['sender_name']}. Připravil jsem ukázku nového webu pro {name} "
-          f"(posílám obrázek). Kompletní web za {price} Kč, hotovo do {cfg['delivery_days']} dnů. "
+          f"(posílám obrázek). Web od {start} Kč, kompletní jako na ukázce za {standard} Kč, hotovo do {cfg['delivery_days']} dnů. "
           f"Mám vám poslat podrobnosti?")
     return subject, body, wa
 
@@ -231,9 +235,13 @@ P.S. Pokud o web nemáte zájem, stačí odepsat „ne“ a už se vám nebudu o
 # ---------------------------------------------------------------- головне
 def write_offers_xlsx(rows, path):
     cols = [("Пріоритет", "status", 15), ("Назва", "name", 32), ("Email", "email", 28),
-            ("Телефон", "phone", 17), ("Ціна, Kč", "price", 10), ("Тема листа", "subject", 32),
+            ("Телефон", "phone", 17), ("Start, Kč", "price_start", 9), ("Standard, Kč", "price", 10),
+            ("Тема листа", "subject", 32),
             ("Текст листа", "body", 70), ("WhatsApp / SMS", "wa", 45), ("Картинка", "image_file", 30),
             ("Відправлено", "sent", 12)]
+    keys = [k for _, k, _ in cols]
+    wrap_cols = {keys.index("body") + 1, keys.index("wa") + 1}
+    img_col = keys.index("image_file") + 1
     wb = Workbook()
     ws = wb.active
     ws.title = "Пропозиції"
@@ -245,9 +253,9 @@ def write_offers_xlsx(rows, path):
         ws.append([r.get(k, "") for _, k, _ in cols])
         row = ws.max_row
         for col in range(1, len(cols) + 1):
-            ws.cell(row, col).alignment = Alignment(vertical="top", wrap_text=col in (7, 8))
-        ws.cell(row, 9).hyperlink = r["image_file"]
-        ws.cell(row, 9).font = Font(color="0563C1", underline="single")
+            ws.cell(row, col).alignment = Alignment(vertical="top", wrap_text=col in wrap_cols)
+        ws.cell(row, img_col).hyperlink = r["image_file"]
+        ws.cell(row, img_col).font = Font(color="0563C1", underline="single")
         ws.row_dimensions[row].height = 120
     for i, (_, _, w) in enumerate(cols, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
@@ -276,7 +284,7 @@ def main():
     cfg = load_config()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    leads = load(args.leads_xlsx, "Ліди")
+    leads = [lf.price(l) for l in load(args.leads_xlsx, "Ліди")]
     if args.limit:
         leads = leads[:args.limit]
     print(f"{len(leads)} лідів → {out}")
