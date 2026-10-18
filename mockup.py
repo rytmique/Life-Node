@@ -412,10 +412,10 @@ nav{display:flex;align-items:center;padding:30px 72px;gap:48px;position:relative
 nav .btn{padding:16px 26px;font-size:16px;background:ACCENT;color:ONACC}
 .pic{position:absolute;right:0;top:0;width:1000px;height:1032px;background:linear-gradient(180deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,0) 22%),linear-gradient(90deg,BG 0%,rgba(0,0,0,0) 30%),url(PH0) center/cover;
  clip-path:polygon(22% 0,100% 0,100% 100%,0 100%);filter:saturate(.9) contrast(1.05)}
-.cp{position:absolute;left:72px;top:190px;z-index:2;width:1180px}
+.cp{position:absolute;left:72px;top:180px;z-index:2;width:1180px}
 .tag{display:inline-flex;gap:10px;align-items:center;font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:14px;color:ACCENT}
 .tag:before{content:"";width:34px;height:3px;background:ACCENT}
-h1{font-size:BIGpx;line-height:1.0;letter-spacing:.005em;margin:26px 0 30px}
+h1{font-size:BIGpx;line-height:1.0;letter-spacing:.005em;margin:40px 0 30px}
 .out{color:transparent;-webkit-text-stroke:2px INK}
 .sub{font-size:22px;line-height:1.55;color:MUTED;max-width:600px}
 .bt{display:flex;gap:16px;margin-top:40px}.bt .o{color:INK}
@@ -428,7 +428,7 @@ h1{font-size:BIGpx;line-height:1.0;letter-spacing:.005em;margin:26px 0 30px}
     body = f"""<div class="pic"></div>
 <nav>{logo(d, c, upper=True)}<div class="mn"><span>Služby</span><span>Ceník</span><span>Galerie</span><span>Kontakt</span></div><span class="btn">{esc(d["phone"] or d["cta"])}</span></nav>
 <div class="cp"><div class="tag">{esc(d["niche"])} · {esc(d["place"] or d["town"])}</div><h1 class="disp">{title}</h1>
-<p class="sub">{d["headline"].replace("<em>", "").replace("</em>", "")}. {esc(d["tagline"])}.</p>
+<p class="sub">{esc(sub_line(d))}</p>
 <div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or "Zavolejte")}</span></div>{rating}</div>
 <div class="ph2">{widget(d, c)}</div>
 <div class="band">{esc(band)} ✦ {esc(band)}</div>"""
