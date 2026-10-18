@@ -6,3 +6,4 @@ __pycache__/
 offers/
 config.json
 sent.json
+*.log
