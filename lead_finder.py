@@ -401,28 +401,28 @@ def pitch(status, reasons):
 # ---------------------------------------------------------------- ціна
 # Базова ціна сайту (Kč) і що в нього входить – по нішах. Правиш тут під свій ринок.
 NICHE_PRICING = {
-    "booking": (18000, "сайт + онлайн-запис + ціни", (
+    "booking": (7990, "сайт + онлайн-запис + ціни", (
         "kadeřnictví", "kosmetický salon", "manikúra", "masáže", "barbershop", "fitness",
         "autoškola")),
-    "food": (20000, "сайт + меню + бронювання столу + галерея", (
+    "food": (7990, "сайт + меню + бронювання столу + галерея", (
         "restaurace", "kavárna", "pekárna")),
-    "medical": (22000, "сайт + послуги/ціни + онлайн-запис + команда", (
+    "medical": (9990, "сайт + послуги/ціни + онлайн-запис + команда", (
         "zubní ordinace", "veterinář")),
-    "realty": (35000, "сайт + каталог об'єктів з фільтрами", ("realitní kancelář",)),
-    "construction": (25000, "сайт + портфоліо проєктів + форма запиту", ("stavební firma",)),
-    "crafts": (15000, "сайт + послуги + галерея робіт + форма", (
+    "realty": (14990, "сайт + каталог об'єктів з фільтрами", ("realitní kancelář",)),
+    "construction": (9990, "сайт + портфоліо проєктів + форма запиту", ("stavební firma",)),
+    "crafts": (5990, "сайт + послуги + галерея робіт + форма", (
         "instalatér", "elektrikář", "truhlářství", "malíř pokojů", "zámečnictví",
         "úklidové služby", "autoservis", "pneuservis", "fotograf", "květinářství", "účetní")),
 }
-DEFAULT_PRICE = (15000, "сайт-візитка: послуги + контакти + форма")
+DEFAULT_PRICE = (5990, "сайт-візитка: послуги + контакти + форма")
 
-STATUS_K = {"БЕЗ САЙТУ": 1.0, "САЙТ НЕ ПРАЦЮЄ": 1.0, "СТАРИЙ САЙТ": 1.1, "СЛАБКИЙ САЙТ": 1.0, "OK": 1.0}
+STATUS_K = {"БЕЗ САЙТУ": 1.0, "САЙТ НЕ ПРАЦЮЄ": 1.0, "СТАРИЙ САЙТ": 1.0, "СЛАБКИЙ САЙТ": 1.0, "OK": 1.0}
 STATUS_WORK = {"БЕЗ САЙТУ": "новий сайт + домен", "САЙТ НЕ ПРАЦЮЄ": "новий сайт + відновлення домену",
                "СТАРИЙ САЙТ": "редизайн + перенос контенту", "СЛАБКИЙ САЙТ": "модернізація сайту",
                "OK": "—"}
 # коди правової форми ARES: 101-108 ОСВЧ, 112 s.r.o., 121 a.s.
-LEGAL_K = {"112": (1.35, "s.r.o."), "121": (2.0, "a.s."), "113": (1.2, "k.s."),
-           "111": (1.2, "v.o.s.")}
+LEGAL_K = {"112": (1.15, "s.r.o."), "121": (1.4, "a.s."), "113": (1.1, "k.s."),
+           "111": (1.1, "v.o.s.")}
 
 
 def legal_form(code, name):
@@ -435,11 +435,11 @@ def legal_form(code, name):
         return LEGAL_K["121"]
     if "s.r.o" in n or "spol. s r" in n:
         return LEGAL_K["112"]
-    return (1.1, "інше") if code else (1.0, "?")
+    return (1.05, "інше") if code else (1.0, "?")
 
 
 def price(c):
-    """Індивідуальна ціна: ніша × що робимо × розмір фірми × місто. Округлено до 500 Kč."""
+    """Індивідуальна ціна: ніша × розмір фірми × місто. Психологічна ціна: 6 490, 7 990 …"""
     base, package = DEFAULT_PRICE
     for b, pkg, niches in NICHE_PRICING.values():
         if c.get("niche") in niches:
@@ -447,12 +447,12 @@ def price(c):
             break
     k_legal, form = legal_form(c.get("legal_form", ""), c.get("legal_name") or c.get("name"))
     reviews = int(c.get("reviews") or 0)
-    k_reviews = 1.25 if reviews >= 100 else 1.1 if reviews >= 30 else 1.0
-    k_city = 1.15 if "praha" in (c.get("city") or "").lower() else 1.0
+    k_reviews = 1.1 if reviews >= 100 else 1.0
+    k_city = 1.1 if "praha" in (c.get("city") or "").lower() else 1.0
     total = base * STATUS_K.get(c["status"], 1.0) * k_legal * k_reviews * k_city
-    c["price"] = int(round(total / 500) * 500)
-    c["price_min"] = int(round(c["price"] * 0.8 / 500) * 500)
-    c["support"] = 1490 if k_legal >= 2 else 890 if k_legal > 1 else 490
+    c["price"] = int(round(total / 500) * 500) - 10
+    c["price_min"] = int(c["price"] * 0.85 // 500 * 500) - 10
+    c["support"] = 490 if k_legal >= 1.4 else 390 if k_legal > 1 else 290
     c["package"] = f"{STATUS_WORK.get(c['status'], '')}: {package}"
     c["form"] = form
     return c
