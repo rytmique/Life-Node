@@ -70,6 +70,13 @@ P = {
              "1600585154084-4e5fe7c39198",
     "lock": "1558002038-1055907df827 1582139329536-e7284fece509 1600585154084-4e5fe7c39198",
 }
+P.update({
+    "garden": "1558904541-efa843a96f01 1416879595882-3373a0480b5b 1585320806297-9794b3e4eeae 1523348837708-15d4a09cfac2 "
+              "1557429287-b2e26467fc2b 1611843467160-25afb8df1074",
+    "trees": "1542273917363-3b1817f69a2d 1513836279014-a89f7a76ae86 1502082553048-f009c37129b9 1473773508845-188df298d2d1",
+    "removals": "1600518464441-9154a4dea21b 1520038410233-7141be7e6f97 1600585152220-90363fe7e115 1586023492125-27b2c045efd7",
+    "fence": "1558036117-15d82a90b9b1 1557429287-b2e26467fc2b 1585320806297-9794b3e4eeae 1558904541-efa843a96f01",
+})
 P = {k: v.split() for k, v in P.items()}
 
 # ---------------------------------------------------------------- ніші: фото, настрій, слогани
@@ -186,6 +193,23 @@ ICON = {
 }
 
 
+UI_CS = {
+    "menu1": ["Služby", "Ceník", "O nás", "Kontakt"], "menu2": ["Služby", "Ceník", "Galerie", "Kontakt"],
+    "menu3": ["Služby", "Reference", "O nás", "Kontakt"], "reviews": "hodnocení", "call_us": "Zavolejte nám", "call": "Zavolejte",
+    "sub_ed": "{head}. {niche} v lokalitě {place}.", "sub_arch": "{tagline}. {niche} v lokalitě {place} – objednejte se online během pár vteřin.",
+    "sub_line": "Osobní přístup, férové ceny a rychlé termíny v lokalitě {place}.",
+    "sub_mag": "{tagline}. Navštivte nás v lokalitě {place}.", "sub_corp": "{name} – {tagline}. Ozvěte se nám a do 24 hodin máte odpověď.",
+    "trust": ["Nezávazně", "Rychlá odpověď", "Férové ceny"],
+    "w_book": "Online rezervace", "days": ["Po", "Út", "St", "Čt", "Pá"], "w_menu": "Dnes v nabídce",
+    "menu_rows": [("Polévka dne", "65 Kč"), ("Hlavní chod", "189 Kč"), ("Dezert", "95 Kč")],
+    "w_quote": "Nezávazná poptávka", "f_name": "Vaše jméno", "f_phone": "Telefon", "f_need": "Co potřebujete?", "w_send": "Odeslat poptávku",
+}
+
+
+def menu(t, k):
+    return "".join(f"<span>{x}</span>" for x in t[k])
+
+
 def svg(name, cls="i"):
     return f'<svg class="{cls}" viewBox="0 0 24 24">{ICON[name]}</svg>'
 
@@ -210,7 +234,8 @@ def photo_path(pid):
 
 # ---------------------------------------------------------------- вибір комбінації
 def pick(lead, niche_info):
-    key, mood, heads = NICHE.get(lead.get("niche"), FALLBACK_NICHE)
+    from uk_content import NICHE_EN
+    key, mood, heads = NICHE.get(lead.get("niche")) or NICHE_EN.get(lead.get("niche")) or FALLBACK_NICHE
     pool = P[key]
     s = seed(lead)
     style = STYLES_BY_MOOD[mood][s % 3]
@@ -255,26 +280,32 @@ def chrome(domain):
             f'<div style="width:60px"></div></div>')
 
 
-def rating_html(lead):
+def rating_html(lead, t=UI_CS):
     r, n = lead.get("rating"), int(lead.get("reviews") or 0)
     try:
         good = float(r) >= 4.3 and n >= 3
     except (TypeError, ValueError):
         good = False
-    return (f"{svg('star', 'i st')} <b>{esc(r)}</b>&nbsp;·&nbsp;{n} hodnocení") if good else ""
+    return (f"{svg('star', 'i st')} <b>{esc(r)}</b>&nbsp;·&nbsp;{n} {t['reviews']}") if good else ""
 
 
 def ctx(lead, c, extra):
     """Спільні дані для шаблонів."""
     from offers import NICHES, FALLBACK, short_name  # послуги й CTA з offers.py
-    tagline, cta, services, _, wkind = NICHES.get(lead.get("niche"), FALLBACK)
+    from uk_content import NICHES_EN, UI_EN
+    t = UI_EN if lead.get("lang") == "en" else UI_CS
+    if lead.get("niche") in NICHES_EN:
+        label, tagline, cta, services, wkind = NICHES_EN[lead["niche"]]
+    else:
+        tagline, cta, services, _, wkind = NICHES.get(lead.get("niche"), FALLBACK)
+        label = (lead.get("niche") or "").capitalize()
     name = short_name(lead["name"])
     city = [x.strip() for x in (lead.get("city") or "").split(",")]
     place = city[-1] if len(city) > 1 else (city[0] if city else "")
     town = city[0] if city else ""
-    return {"name": name, "cta": cta, "services": services, "tagline": tagline, "wkind": wkind,
-            "place": place, "town": town, "phone": lead.get("phone") or "", "niche": (lead.get("niche") or "").capitalize(),
-            "rating": rating_html(lead), **extra}
+    return {"name": name, "cta": cta, "services": services, "tagline": tagline, "wkind": wkind, "t": t,
+            "place": place, "town": town, "phone": lead.get("phone") or "", "niche": label,
+            "rating": rating_html(lead, t), **extra}
 
 
 def name_size(name, base, step=6, per=4):
@@ -293,15 +324,16 @@ def widget(d, c):
     pal = c["pal"]
     if d["wkind"] == "booking":
         days = "".join(f'<span class="{"on" if i == 2 else ""}"><small>{w}</small>{n}</span>'
-                       for i, (w, n) in enumerate([("Po", 14), ("Út", 15), ("St", 16), ("Čt", 17), ("Pá", 18)]))
+                       for i, (w, n) in enumerate(zip(d["t"]["days"], [14, 15, 16, 17, 18])))
         slots = "".join(f'<span class="{"on" if i == 1 else ""}">{t}</span>' for i, t in enumerate(["9:30", "11:00", "14:30", "16:00"]))
-        return f'<div class="wg"><div class="wh">{svg("cal")} Online rezervace</div><div class="days">{days}</div><div class="slots">{slots}</div><div class="wb">{esc(d["cta"])}</div></div>'
+        return f'<div class="wg"><div class="wh">{svg("cal")} {d["t"]["w_book"]}</div><div class="days">{days}</div><div class="slots">{slots}</div><div class="wb">{esc(d["cta"])}</div></div>'
     if d["wkind"] == "menu":
         rows = "".join(f'<div class="mr"><span>{a}</span><i></i><b>{b}</b></div>' for a, b in
-                       [("Polévka dne", "65 Kč"), ("Hlavní chod", "189 Kč"), ("Dezert", "95 Kč")])
-        return f'<div class="wg"><div class="wh">{svg("clock")} Dnes v nabídce</div>{rows}<div class="wb">{esc(d["cta"])}</div></div>'
-    return (f'<div class="wg"><div class="wh">{svg("check")} Nezávazná poptávka</div><div class="f">Vaše jméno</div>'
-            f'<div class="f">Telefon</div><div class="f t">Co potřebujete?</div><div class="wb">Odeslat poptávku</div></div>')
+                       d["t"]["menu_rows"])
+        return f'<div class="wg"><div class="wh">{svg("clock")} {d["t"]["w_menu"]}</div>{rows}<div class="wb">{esc(d["cta"])}</div></div>'
+    t = d["t"]
+    return (f'<div class="wg"><div class="wh">{svg("check")} {t["w_quote"]}</div><div class="f">{t["f_name"]}</div>'
+            f'<div class="f">{t["f_phone"]}</div><div class="f t">{t["f_need"]}</div><div class="wb">{t["w_send"]}</div></div>')
 
 
 WIDGET_CSS = Template("""
@@ -345,12 +377,12 @@ h1 em{color:#fff;opacity:.92}
 .sv small{font-size:16px;opacity:.75}
 """
     headline = f'{esc(nm)}' if len(nm) <= 26 else d["headline"]
-    sub = f'{d["headline"].replace("<em>", "").replace("</em>", "")}. {esc(d["niche"])} v lokalitě {esc(d["place"])}.' \
+    sub = esc(d["t"]["sub_ed"].format(head=re.sub("<[^>]+>", "", d["headline"]), niche=d["niche"], place=d["place"])) \
         if len(nm) <= 26 else f'{esc(d["niche"])} {esc(nm)} · {esc(d["place"])}'
     body = f"""<div class="hero"></div>
-<nav>{logo(d, c)}<div class="mn"><span>Služby</span><span>Ceník</span><span>O nás</span><span>Kontakt</span></div><span class="btn">{esc(d["phone"] or d["cta"])}</span></nav>
+<nav>{logo(d, c)}<div class="mn">{menu(d["t"], "menu1")}</div><span class="btn">{esc(d["phone"] or d["cta"])}</span></nav>
 <div class="cp"><div class="kick">{esc(d["niche"])} · {esc(d["town"])}</div><h1 class="disp">{headline}</h1><p class="sub">{sub}</p>
-<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or "Zavolejte nám")}</span></div></div>
+<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or d["t"]["call_us"])}</span></div></div>
 {rating}<div class="svs">{services}</div>"""
     return css.replace("BIG", str(big)), body
 
@@ -385,9 +417,9 @@ h1{font-size:118px;line-height:1.0;letter-spacing:-.015em;margin:30px 0 30px}
     body = f"""<div class="ln2"></div><div class="ar"></div><div class="ar2"></div>
 <svg class="ring" viewBox="0 0 200 200"><circle class="c" cx="100" cy="100" r="99"/><defs><path id="cp" d="M100,100 m-72,0 a72,72 0 1,1 144,0 a72,72 0 1,1 -144,0"/></defs>
 <text><textPath href="#cp" textLength="448" lengthAdjust="spacing">{esc(ring)}</textPath></text></svg><div class="dot">{svg("arrow")}</div>
-<nav>{logo(d, c)}<div class="mn"><span>Služby</span><span>Ceník</span><span>Galerie</span><span>Kontakt</span></div><span class="btn">{esc(d["cta"])}</span></nav>
+<nav>{logo(d, c)}<div class="mn">{menu(d["t"], "menu2")}</div><span class="btn">{esc(d["cta"])}</span></nav>
 <div class="cp"><div class="kick">{esc(d["name"])}</div><h1 class="disp">{hl}</h1>
-<p class="sub">{esc(d["tagline"])}. {esc(d["niche"])} v lokalitě {esc(d["place"])} – objednejte se online během pár vteřin.</p>
+<p class="sub">{esc(d["t"]["sub_arch"].format(tagline=d["tagline"], niche=d["niche"], place=d["place"]))}</p>
 <div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span>{rating}</div>
 <div class="meta"><span>{svg("phone")}{esc(d["phone"])}</span><span>{svg("pin")}{esc(d["place"] or d["town"])}</span></div></div>
 <div class="svs">{services}</div>"""
@@ -426,10 +458,10 @@ h1{font-size:BIGpx;line-height:1.0;letter-spacing:.005em;margin:40px 0 30px}
 """
     rating = f'<div class="rt">{d["rating"]}</div>' if d["rating"] else ""
     body = f"""<div class="pic"></div>
-<nav>{logo(d, c, upper=True)}<div class="mn"><span>Služby</span><span>Ceník</span><span>Galerie</span><span>Kontakt</span></div><span class="btn">{esc(d["phone"] or d["cta"])}</span></nav>
+<nav>{logo(d, c, upper=True)}<div class="mn">{menu(d["t"], "menu2")}</div><span class="btn">{esc(d["phone"] or d["cta"])}</span></nav>
 <div class="cp"><div class="tag">{esc(d["niche"])} · {esc(d["place"] or d["town"])}</div><h1 class="disp">{title}</h1>
 <p class="sub">{esc(sub_line(d))}</p>
-<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or "Zavolejte")}</span></div>{rating}</div>
+<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or d["t"]["call"])}</span></div>{rating}</div>
 <div class="ph2">{widget(d, c)}</div>
 <div class="band">{esc(band)} ✦ {esc(band)}</div>"""
     return css.replace("BIG", str(big)), body
@@ -440,7 +472,7 @@ def sub_line(d):
     head = re.sub("<[^>]+>", "", d["headline"]).lower()
     first = d["tagline"].lower().split()[0].strip(",")
     lead_in = "" if first in head else d["tagline"] + ". "
-    return f"{lead_in}Osobní přístup, férové ceny a rychlé termíny v lokalitě {d['place'] or d['town']}."
+    return lead_in + d["t"]["sub_line"].format(place=d["place"] or d["town"])
 
 
 def split(d, c, ph):
@@ -472,12 +504,12 @@ h1{font-size:90px;line-height:1.02;letter-spacing:-.025em;margin:26px 0 22px}
     if not left:
         css = css.replace("border-radius:RADIUS 0 0 RADIUS", "border-radius:0 RADIUS RADIUS 0")
     badge = d["rating"] or f'{svg("pin")} {esc(d["niche"])} · {esc(d["place"] or d["town"])}'
-    body = f"""<nav>{logo(d, c)}<div class="mn"><span>Služby</span><span>Reference</span><span>O nás</span><span>Kontakt</span></div><span class="btn">{svg("phone")} {esc(d["phone"] or d["cta"])}</span></nav>
+    body = f"""<nav>{logo(d, c)}<div class="mn">{menu(d["t"], "menu3")}</div><span class="btn">{svg("phone")} {esc(d["phone"] or d["cta"])}</span></nav>
 <div class="pic"><div class="bd">{badge}</div></div>
 <div class="cp"><div class="kick">{esc(d["name"])}</div><h1 class="disp">{d["headline"]}</h1>
 <p class="sub">{esc(sub_line(d))}</p>
 <div class="rws">{rows}</div>
-<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or "Zavolejte")}</span></div></div>"""
+<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or d["t"]["call"])}</span></div></div>"""
     return css, body
 
 
@@ -503,10 +535,10 @@ h1{font-size:104px;line-height:1.02;letter-spacing:-.025em;margin:22px 0 28px;ma
 .st{fill:#E0A93B;stroke:#E0A93B}
 """
     rating = f'<span>{d["rating"]}</span>' if d["rating"] else ""
-    body = f"""<nav><div class="mn"><span>Služby</span><span>Ceník</span><span>Galerie</span></div>{logo(d, c)}<div class="mn r"><span>Kontakt</span><span class="btn">{esc(d["cta"])}</span></div></nav>
+    body = f"""<nav><div class="mn">{"".join(f"<span>{x}</span>" for x in d["t"]["menu2"][:3])}</div>{logo(d, c)}<div class="mn r"><span>{d["t"]["menu2"][3]}</span><span class="btn">{esc(d["cta"])}</span></div></nav>
 <div class="cp"><div class="no">— {esc(d["niche"])}, {esc(d["town"])}</div><h1 class="disp">{d["headline"]}</h1>
-<p class="sub">{esc(d["tagline"])}. Navštivte nás v lokalitě {esc(d["place"] or d["town"])}.</p>
-<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or "Zavolejte")}</span></div>
+<p class="sub">{esc(d["t"]["sub_mag"].format(tagline=d["tagline"], place=d["place"] or d["town"]))}</p>
+<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or d["t"]["call"])}</span></div>
 <div class="meta">{rating}<span>{svg("pin")}{esc(d["place"] or d["town"])}</span></div></div>
 <div class="g"><div class="a"><span class="cap">{esc(d["services"][0][0])}</span></div><div class="b"></div><div class="c"><span class="cap">{esc(d["services"][1][0])}</span></div></div>
 <div class="band">{esc(band)}</div>"""
@@ -545,12 +577,12 @@ h1 em{font-style:normal;background:linear-gradient(90deg,ACCENT,INK);-webkit-bac
 """
     pill = d["rating"] or f'{svg("pin")} {esc(d["niche"])} · {esc(d["place"] or d["town"])}'
     body = f"""<div class="bgm"></div>
-<nav>{logo(d, c)}<div class="mn"><span>Služby</span><span>Reference</span><span>O nás</span><span>Kontakt</span></div><span class="btn">{esc(d["cta"])}</span></nav>
+<nav>{logo(d, c)}<div class="mn">{menu(d["t"], "menu3")}</div><span class="btn">{esc(d["cta"])}</span></nav>
 <div class="cp"><span class="pill">{pill}</span><h1 class="disp">{d["headline"]}</h1>
-<p class="sub">{esc(d["name"])} – {esc(d["tagline"].lower())}. Ozvěte se nám a do 24 hodin máte odpověď.</p>
-<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or "Zavolejte")}</span></div>
-<div class="tr"><span>{svg("check")} Nezávazně</span><span>{svg("check")} Rychlá odpověď</span><span>{svg("check")} Férové ceny</span></div></div>
-<div class="pic"></div><div class="fl2"><div class="ic2">{svg("phone")}</div><div><small>Zavolejte nám</small><b>{esc(d["phone"])}</b></div></div>
+<p class="sub">{esc(d["t"]["sub_corp"].format(name=d["name"], tagline=d["tagline"][:1].lower() + d["tagline"][1:]))}</p>
+<div class="bt"><span class="btn a">{esc(d["cta"])} {svg("arrow")}</span><span class="btn o">{svg("phone")} {esc(d["phone"] or d["t"]["call"])}</span></div>
+<div class="tr">{"".join(f'<span>{svg("check")} {x}</span>' for x in d["t"]["trust"])}</div></div>
+<div class="pic"></div><div class="fl2"><div class="ic2">{svg("phone")}</div><div><small>{d["t"]["call_us"]}</small><b>{esc(d["phone"])}</b></div></div>
 <div class="fl">{widget(d, c)}</div>
 <div class="cds">{cards}</div>"""
     return css, body
