@@ -433,9 +433,13 @@ def bold(d, c, ph):
     words = nm.split()
     if len(words) > 1:
         half = (len(words) + 1) // 2
-        title = f'{esc(" ".join(words[:half]))}<br><span class="out">{esc(" ".join(words[half:]))}</span>'
+        lines = [" ".join(words[:half]), " ".join(words[half:])]
+        title = f'{esc(lines[0])}<br><span class="out">{esc(lines[1])}</span>'
     else:
+        lines = [nm]
         title = esc(nm)
+    # кегль під найдовший рядок, щоб назва не налазила на фото й віджет (~0.5em на літеру)
+    big = min(big, int(1100 / (0.5 * max(len(x) for x in lines))))
     css = """
 nav{display:flex;align-items:center;padding:30px 72px;gap:48px;position:relative;z-index:3}
 .logo{display:flex;align-items:center;gap:14px}.mk{width:48px;height:48px;background:ACCENT;color:ONACC;display:flex;align-items:center;justify-content:center;
