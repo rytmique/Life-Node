@@ -293,7 +293,7 @@ def audit_site(url):
     if r.status_code in (401, 403, 429):  # антибот-захист, сайт швидше за все живий
         return "OK", 0, [f"не вдалось перевірити (HTTP {r.status_code}), глянь вручну"], []
     head = (r.text or "")[:3000].lower()
-    if r.status_code == 202 or any(k in head for k in ("sgcaptcha", "cf-chl", "just a moment", "/.well-known/", "captcha")):
+    if r.status_code == 202 or any(k in head for k in ("sgcaptcha", "cf-chl", "just a moment", "moment, prosím", "/.well-known/", "captcha")):
         # сторінка-перевірка хостингу замість сайту – справжній сайт ми не бачимо
         return "OK", 0, ["антибот-захист хостингу, сайт не перевірено"], []
     if r.status_code >= 400:
