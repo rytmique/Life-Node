@@ -8,12 +8,14 @@
 Запуск:  python uk_finder.py --top 200
 """
 import argparse
+import difflib
+import html
 import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import lead_finder as lf
 
@@ -88,6 +90,33 @@ def site_text_and_emails(url):
     return " ".join(texts), emails
 
 
+def _words(s):
+    s = re.sub(r"\b(ltd|limited|the|and)\b", " ", s.lower().replace("&", " "))
+    return [w for w in re.sub(r"[^a-z0-9 ]", " ", s).split() if w]
+
+
+def companies_house(name, postcode=""):
+    """Шукає діючу компанію в Companies House. Повертає назву з реєстру або None (швидше за все sole trader)."""
+    q = re.sub(r"\b(ltd|limited)\b", "", name, flags=re.I).strip()
+    try:
+        h = lf.get("https://find-and-update.company-information.service.gov.uk/search/companies?q=" + quote_plus(q),
+                   tries=2, timeout=20).text
+    except Exception:
+        return None
+    rows = re.findall(r'href="/company/(\w+)"[^>]*>\s*(.*?)\s*</a>.*?<p class="meta crumbtrail">\s*(.*?)\s*</p>\s*<p>(.*?)</p>', h, re.S)
+    words, pc = set(_words(q)), postcode.replace(" ", "").upper()[:4]
+    for num, title, meta, addr in rows[:10]:
+        t = html.unescape(title)
+        if "Dissolved" in meta or not words:
+            continue
+        share = len(words & set(_words(t))) / len(words)
+        sim = difflib.SequenceMatcher(None, "".join(_words(q)), "".join(_words(t))).ratio()
+        pc_ok = bool(pc) and pc in addr.replace(" ", "").upper()
+        if share >= .99 or sim >= .8 or (pc_ok and (share >= .5 or sim >= .6)):
+            return t
+    return None
+
+
 def process(c):
     status, score, reasons, _ = lf.audit_site(c["website"])
     c["status"], c["score"], c["reasons"] = status, score, reasons
@@ -97,6 +126,10 @@ def process(c):
         c["email"] = emails[0] if emails else ""
         c["ltd"] = c["ltd"] or bool(LTD_RE.search(re.sub(r"<[^>]+>", " ", text)))
     c["phone"], c["wa"], c["phone_type"] = uk_phone(c["phone"])
+    if c["email"] and c["ltd"]:
+        # футер сайту може згадувати чужу Ltd (конструктор, хостинг) – звіряємо з реєстром
+        c["ch_name"] = companies_house(c["name"], c.get("postcode", ""))
+        c["ltd"] = bool(c["ch_name"])
     c["channel"] = "email" if c["email"] and c["ltd"] else "call"
     # гарячість: проблема сайту + живість бізнесу + легальний email
     c["hot"] = score + min(c["reviews"], 40) + c["stars"] * 3 + (25 if c["channel"] == "email" else 0)
