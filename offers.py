@@ -226,10 +226,58 @@ S pozdravem
 {cfg['sender_phone']} | {cfg['sender_email']}{web}
 
 P.S. Pokud o web nemáte zájem, stačí odepsat „ne“ a už se vám nebudu ozývat."""
-    wa = (f"Dobrý den, tady {cfg['sender_name']}. Připravil jsem ukázku nového webu pro {name} "
-          f"(posílám obrázek). Web od {start} Kč, kompletní jako na ukázce za {standard} Kč, hotovo do {cfg['delivery_days']} dnů. "
-          f"Mám vám poslat podrobnosti?")
-    return subject, body, wa
+    return subject, body, wa_text(lead, cfg)
+
+
+# Конкретна вигода від сайту для кожної ніші (одне речення)
+BENEFIT_CZ = {
+    "booking": "Zákazníci se objednají sami online, i večer – vy nemusíte při práci zvedat telefon.",
+    "autoservis": "Zákazníci si sami vyberou termín a uvidí ceník – méně telefonování, víc zakázek.",
+    "pneuservis": "Zákazníci si sami zarezervují přezutí – žádné fronty a hovory v sezóně.",
+    "autoškola": "Zájemci uvidí ceník a přihlásí se rovnou online – bez zbytečných dotazů.",
+    "medical": "Klienti najdou ordinační hodiny, ceník a objednají se online – méně telefonátů.",
+    "food": "Lidé uvidí menu a fotky a rovnou si rezervují stůl – víc hostů i ve všední dny.",
+    "pekárna": "Lidé si objednají dorty a pečivo předem online – víc objednávek bez telefonování.",
+    "květinářství": "Lidé si objednají kytici online i s rozvozem – i když máte zavřeno.",
+    "crafts": "Kdo hledá řemeslníka, chce vidět fotky prací – web vám nosí poptávky, i když jste na zakázce.",
+    "fotograf": "Klienti si vybírají fotografa podle portfolia – web s vašimi fotkami prodává za vás.",
+    "účetní": "Firmy vybírají účetní podle důvěry – web s referencemi vám přivede nové klienty.",
+    "realitní kancelář": "Prodávající hledají makléře online – vlastní web budí víc důvěry než inzerát.",
+    "fitness": "Nováčci najdou rozvrh a ceník a přijdou rovnou na zkoušku.",
+    "stavební firma": "Investoři chtějí vidět realizace – web s referencemi vám přivede větší zakázky.",
+}
+NICHE_GROUP = {
+    "kadeřnictví": "booking", "kosmetický salon": "booking", "manikúra": "booking", "masáže": "booking",
+    "barbershop": "booking", "zubní ordinace": "medical", "veterinář": "medical",
+    "restaurace": "food", "kavárna": "food",
+    "instalatér": "crafts", "elektrikář": "crafts", "truhlářství": "crafts", "malíř pokojů": "crafts",
+    "zámečnictví": "crafts", "úklidové služby": "crafts",
+}
+
+
+def wa_text(lead, cfg):
+    """Короткий WhatsApp: проблема → вигода → макет → м'яке питання."""
+    name = short_name(lead["name"])
+    niche = lead.get("niche") or ""
+    place = (lead.get("city") or "").split(",")[-1].strip()
+    search = f"„{niche} {place}“" if niche and place else "vaše služby"
+    reasons = lead.get("reasons") or ""
+    status = lead.get("status")
+    if status == "БЕЗ САЙТУ" and "лише" in reasons:
+        problem = f"všiml jsem si, že {name} má jen profil na sociální síti – kdo na Googlu hledá {search}, najde spíš konkurenci."
+    elif status == "БЕЗ САЙТУ":
+        problem = f"všiml jsem si, že {name} nemá web – kdo na Googlu hledá {search}, najde spíš konkurenci."
+    elif status == "САЙТ НЕ ПРАЦЮЄ":
+        problem = f"zkoušel jsem otevřít web {name} a nefunguje – zákazníci místo vás vidí chybu."
+    elif "телефон" in reasons:
+        problem = f"web {name} se na mobilu špatně zobrazuje, a přitom většina lidí hledá z telefonu."
+    else:
+        problem = f"web {name} působí zastarale a zákazníky to může odradit."
+    benefit = BENEFIT_CZ.get(niche) or BENEFIT_CZ.get(NICHE_GROUP.get(niche, "crafts"))
+    start = f"{int(lead.get('price_start') or lf.START_PRICE):,}".replace(",", " ")
+    return (f"Dobrý den, tady {cfg['sender_name']}, dělám weby pro firmy v okolí. {problem[0].upper() + problem[1:]}\n\n"
+            f"Připravil jsem vám ukázku, jak by váš web mohl vypadat (posílám obrázek). {benefit}\n\n"
+            f"Web je hotový do týdne, cena od {start} Kč. Mám vám poslat podrobnosti?")
 
 
 # ---------------------------------------------------------------- головне
