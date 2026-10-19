@@ -138,6 +138,8 @@ def main():
             continue
         seen.add(k)
         uniq.append(c)
+    Path("output").mkdir(exist_ok=True)
+    Path("output/uk_all.json").write_text(json.dumps(uniq, ensure_ascii=False), "utf8")  # усі перевірені, для добору
     hot = [c for c in uniq if c["status"] in ("СТАРИЙ САЙТ", "СЛАБКИЙ САЙТ", "САЙТ НЕ ПРАЦЮЄ") and c["phone"]]
     hot.sort(key=lambda c: (c["channel"] != "email", -c["hot"]))
     top = hot[:args.top]
